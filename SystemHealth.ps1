@@ -166,7 +166,7 @@ function Start-SystemHealthCheck {
         Write-Host "   Status: OK" -ForegroundColor Green
     }
     catch {
-        Write-Host "   Status: ERROR - Failed to gather system info" -ForegroundColor Red
+        Write-Error "Error gathering system information: $($_.Exception.Message)" -ForegroundColor Red
         $overallStatus = "ERROR"
         $issues += "System information gathering failed"
     }
@@ -186,7 +186,7 @@ function Start-SystemHealthCheck {
         Write-Host "   Status: OK" -ForegroundColor Green
     }
     catch {
-        Write-Host "   Status: ERROR - Failed to read registry" -ForegroundColor Red
+        Write-Error "Error gathering registry information: $($_.Exception.Message)" -ForegroundColor Red
         $overallStatus = "ERROR"
         $issues += "Registry information reading failed"
     }
@@ -217,7 +217,7 @@ function Start-SystemHealthCheck {
         }
     }
     catch {
-        Write-Host "   Status: ERROR - Failed to check disk space" -ForegroundColor Red
+        Write-Error "Error checking disk space: $($_.Exception.Message)" -ForegroundColor Red
         $overallStatus = "ERROR"
         $issues += "Disk space checking failed"
     }
