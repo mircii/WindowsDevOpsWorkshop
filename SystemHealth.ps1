@@ -180,7 +180,7 @@ function Start-SystemHealthCheck {
         Write-Host "   Windows Version: $($registryInfo.WindowsVersion)" -ForegroundColor Green
         Write-Host "   Windows Build: $($registryInfo.WindowsBuild)" -ForegroundColor Green
         Write-Host "   Registered Owner: $($registryInfo.RegisteredOwner)" -ForegroundColor Green
-        Write-Host "   Installed Software (sample):" -ForegroundColor Green
+        Write-Host "   Installed Software (sample of 5):" -ForegroundColor Green
         foreach ($software in $registryInfo.InstalledSoftware) {
             Write-Host "     - $software" -ForegroundColor Gray
         }
