@@ -6,11 +6,39 @@ function Check-DiskSpace {
     param(
         [int]$ThresholdPercent = 80
     )
+    
+    try {
+        $drives = Get-CimInstance -ClassName Win32_LogicalDisk | Where-Object { $_.DriveType -eq 3 }
+        $driveResults = @()
+        
+        foreach ($drive in $drives) {
+            $sizeGB = [math]::Round($drive.Size / 1GB, 2)
+            $freeGB = [math]::Round($drive.FreeSpace / 1GB, 2)
+            $usedPercent = [math]::Round((($drive.Size - $drive.FreeSpace) / $drive.Size) * 100, 2)
 
-    # Your code here
-    # Hint: Use Get-WmiObject Win32_LogicalDisk or Get-CimInstance
-    # Calculate percentage used for each drive
-    # Use if/else to warn when threshold exceeded
+            if ($usedPercent -gt $ThresholdPercent) {
+                $status = "WARNING"
+            } else {
+                $status = "OK"
+            }
+            
+            $driveInfo = [PSCustomObject]@{
+                Drive = $drive.DeviceID
+                SizeGB = $sizeGB
+                FreeGB = $freeGB
+                UsedPercent = $usedPercent
+                Status = $status
+            }
+            
+            $driveResults += $driveInfo
+        }
+        
+        return $driveResults
+    }
+    catch {
+        Write-Error "Error accessing drive information: $($_.Exception.Message)"
+        return @()
+    }
 }
 
 # Function 2: Read registry information
