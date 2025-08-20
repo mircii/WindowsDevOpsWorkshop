@@ -96,7 +96,6 @@ function Get-SystemInfo {
     param()
 
     try {
-        # Informații din WMI (CIM)
         $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
         $cs = Get-CimInstance Win32_ComputerSystem -ErrorAction Stop
     }
@@ -112,19 +111,14 @@ function Get-SystemInfo {
         }
     }
 
-    # Numele OS din Win32_OperatingSystem.Caption
     $osName = $os.Caption
 
-    # RAM total din bytes -> GB, rotunjit la 2 zecimale
     $totalRamGB = [math]::Round([double]$cs.TotalPhysicalMemory / 1GB, 2)
 
-    # Nr procesoare logice
     $cpuCount = [int]$cs.NumberOfLogicalProcessors
 
-    # Uptime în ore din LastBootUpTime
     $uptimeHours = [math]::Round(((Get-Date) - $os.LastBootUpTime).TotalHours, 2)
 
-    # Obiectul final, cu propr EXACT cum sunt cerute
     return [PSCustomObject]@{
         ComputerName = $env:COMPUTERNAME
         OSVersion    = $osName
@@ -138,10 +132,119 @@ function Get-SystemInfo {
 
 # Main function that orchestrates everything
 function Start-SystemHealthCheck {
+    param(
+        [int]$DiskThreshold = 80,
+        [string]$RegistryKeyPath = "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion"
+    )
+    
     Write-Host "=== System Health Check Starting ===" -ForegroundColor Green
-
-    # Call your functions here in logical order
-    # Display results in a nice format
-
+    Write-Host "Configuration:" -ForegroundColor Cyan
+    Write-Host "  - Disk space threshold: $DiskThreshold%" -ForegroundColor Gray
+    Write-Host "  - Registry key: $RegistryKeyPath" -ForegroundColor Gray
+    Write-Host ""
+    
+    $overallStatus = "OK"
+    $issues = @()
+    
+    # 1. Check System Information
+    Write-Host "1. Gathering System Information..." -ForegroundColor Cyan
+    try {
+        $systemInfo = Get-SystemInfo
+        Write-Host "   Computer Name: $($systemInfo.ComputerName)" -ForegroundColor Green
+        Write-Host "   OS Version: $($systemInfo.OSVersion)" -ForegroundColor Green
+        Write-Host "   Total RAM: $($systemInfo.TotalRAM_GB) GB" -ForegroundColor Green
+        Write-Host "   CPU Count: $($systemInfo.CPU_Count)" -ForegroundColor Green
+        Write-Host "   Uptime: $($systemInfo.Uptime_Hours) hours" -ForegroundColor Green
+        Write-Host "   Current User: $($systemInfo.CurrentUser)" -ForegroundColor Green
+        Write-Host "   Status: OK" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "   Status: ERROR - Failed to gather system info" -ForegroundColor Red
+        $overallStatus = "ERROR"
+        $issues += "System information gathering failed"
+    }
+    Write-Host ""
+    
+    # 2. Check Registry Information
+    Write-Host "2. Reading Registry Information..." -ForegroundColor Cyan
+    try {
+        $registryInfo = Get-RegistryInfo -KeyPath $RegistryKeyPath
+        Write-Host "   Windows Version: $($registryInfo.WindowsVersion)" -ForegroundColor Green
+        Write-Host "   Windows Build: $($registryInfo.WindowsBuild)" -ForegroundColor Green
+        Write-Host "   Registered Owner: $($registryInfo.RegisteredOwner)" -ForegroundColor Green
+        Write-Host "   Installed Software (sample):" -ForegroundColor Green
+        foreach ($software in $registryInfo.InstalledSoftware) {
+            Write-Host "     - $software" -ForegroundColor Gray
+        }
+        Write-Host "   Status: OK" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "   Status: ERROR - Failed to read registry" -ForegroundColor Red
+        $overallStatus = "ERROR"
+        $issues += "Registry information reading failed"
+    }
+    Write-Host ""
+    
+    # 3. Check Disk Space
+    Write-Host "3. Checking Disk Space..." -ForegroundColor Cyan
+    try {
+        $diskInfo = Check-DiskSpace -ThresholdPercent $DiskThreshold
+        $warningCount = 0
+        
+        foreach ($drive in $diskInfo) {
+            $color = switch ($drive.Status) {
+                "OK" { "Green" }
+                "WARNING" { "Yellow"; $warningCount++ }
+                default { "Red" }
+            }
+            
+            Write-Host "   Drive $($drive.Drive): $($drive.UsedPercent)% used ($($drive.FreeGB) GB free of $($drive.SizeGB) GB) - $($drive.Status)" -ForegroundColor $color
+        }
+        
+        if ($warningCount -gt 0) {
+            Write-Host "   Status: WARNING - $warningCount drive(s) above threshold" -ForegroundColor Yellow
+            if ($overallStatus -eq "OK") { $overallStatus = "WARNING" }
+            $issues += "$warningCount drive(s) above space threshold"
+        } else {
+            Write-Host "   Status: OK - All drives healthy" -ForegroundColor Green
+        }
+    }
+    catch {
+        Write-Host "   Status: ERROR - Failed to check disk space" -ForegroundColor Red
+        $overallStatus = "ERROR"
+        $issues += "Disk space checking failed"
+    }
+    Write-Host ""
+    
+    # Display overall summary
+    Write-Host "=== HEALTH CHECK SUMMARY ===" -ForegroundColor Cyan
+    $summaryColor = switch ($overallStatus) {
+        "OK" { "Green" }
+        "WARNING" { "Yellow" }
+        "ERROR" { "Red" }
+    }
+    
+    Write-Host "Overall Status: $overallStatus" -ForegroundColor $summaryColor
+    
+    if ($issues.Count -gt 0) {
+        Write-Host "Issues Found:" -ForegroundColor Yellow
+        foreach ($issue in $issues) {
+            Write-Host "  - $issue" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "No issues detected - System is healthy!" -ForegroundColor Green
+    }
+    
+    Write-Host ""
     Write-Host "=== System Health Check Complete ===" -ForegroundColor Green
+    
+    return [PSCustomObject]@{
+        OverallStatus = $overallStatus
+        CheckTime = Get-Date
+        SystemInfo = $systemInfo
+        RegistryInfo = $registryInfo
+        DiskInfo = $diskInfo
+        Issues = $issues
+        IssueCount = $issues.Count
+    }
 }
