@@ -89,7 +89,6 @@ function Get-RegistryInfo {
         Write-Host "Error reading installed software: $($_.Exception.Message)" -ForegroundColor Red
     }
 
-    # Returnare obiect final
     return [PSCustomObject]@{
         WindowsVersion = $winVersion
         WindowsBuild = $winBuild
