@@ -43,28 +43,33 @@ function Check-DiskSpace {
 
 # Function 2: Read registry information
 function Get-RegistryInfo {
+    [CmdletBinding()]
     param(
         [string]$KeyPath = "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion"
     )
 
-    try{
-        $winInfo = Get-ItemProperty -Path $KeyPath
-        $winVersion = $winInfo.ProductName
-        $winBuild = $winInfo.CurrentBuild
-        $winRegisteredOwner = $winInfo.RegisteredOwner
-    }catch {
-        Write-Error "Failed to read registry key: $_"
-        return
+    try {
+        $winInfo = Get-ItemProperty -Path $KeyPath -ErrorAction Stop
+        
+        $winVersion = if ($winInfo.PSObject.Properties.Name -contains "ProductName") { $winInfo.ProductName } else { "Unknown" }
+        $winBuild = if ($winInfo.PSObject.Properties.Name -contains "CurrentBuild") { $winInfo.CurrentBuild } else { "Unknown" }
+        $winRegisteredOwner = if ($winInfo.PSObject.Properties.Name -contains "RegisteredOwner") { $winInfo.RegisteredOwner } else { "Unknown" }
+    }
+    catch {
+        Write-Host "Error reading registry key: $($_.Exception.Message)" -ForegroundColor Red
+        return [PSCustomObject]@{
+            WindowsVersion = "Unknown"
+            WindowsBuild = "Unknown"
+            RegisteredOwner = "Unknown"
+            InstalledSoftware = @()
+        }
     }
 
     $swKeyPath = "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall"
     $softwareList = @()
 
     try {
-        $softwareKeys = Get-ChildItem -Path $swKeyPath
-        $counter = 0
-        $found = 0
-
+        $softwareKeys = Get-ChildItem -Path $swKeyPath -ErrorAction Stop
         $counter = 0
         $found = 0
 
@@ -79,9 +84,12 @@ function Get-RegistryInfo {
 
             $counter++
         }
-    } catch {
-        Write-Error "Failed to read installed software: $_"
+    } 
+    catch {
+        Write-Host "Error reading installed software: $($_.Exception.Message)" -ForegroundColor Red
     }
+
+    # Returnare obiect final
     return [PSCustomObject]@{
         WindowsVersion = $winVersion
         WindowsBuild = $winBuild
