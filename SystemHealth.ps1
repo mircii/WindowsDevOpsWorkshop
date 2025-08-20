@@ -54,10 +54,49 @@ function Get-RegistryInfo {
 
 # Function 3: Gather system information
 function Get-SystemInfo {
-    # Your code here
-    # Hint: Use Get-ComputerInfo, Get-Process, Get-CimInstance
-    # Create a custom object with all system details
+    [CmdletBinding()]
+    param()
+
+    try {
+        # Informații din WMI (CIM)
+        $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
+        $cs = Get-CimInstance Win32_ComputerSystem -ErrorAction Stop
+    }
+    catch {
+        Write-Host "Error gathering system info: $($_.Exception.Message)" -ForegroundColor Red
+        return [PSCustomObject]@{
+            ComputerName = $env:COMPUTERNAME
+            OSVersion    = "Unknown"
+            TotalRAM_GB  = 0
+            CPU_Count    = 0
+            Uptime_Hours = 0
+            CurrentUser  = $env:USERNAME
+        }
+    }
+
+    # Numele OS din Win32_OperatingSystem.Caption
+    $osName = $os.Caption
+
+    # RAM total din bytes -> GB, rotunjit la 2 zecimale
+    $totalRamGB = [math]::Round([double]$cs.TotalPhysicalMemory / 1GB, 2)
+
+    # Nr procesoare logice
+    $cpuCount = [int]$cs.NumberOfLogicalProcessors
+
+    # Uptime în ore din LastBootUpTime
+    $uptimeHours = [math]::Round(((Get-Date) - $os.LastBootUpTime).TotalHours, 2)
+
+    # Obiectul final, cu propr EXACT cum sunt cerute
+    return [PSCustomObject]@{
+        ComputerName = $env:COMPUTERNAME
+        OSVersion    = $osName
+        TotalRAM_GB  = $totalRamGB
+        CPU_Count    = $cpuCount
+        Uptime_Hours = $uptimeHours
+        CurrentUser  = $env:USERNAME
+    }
 }
+
 
 # Main function that orchestrates everything
 function Start-SystemHealthCheck {
