@@ -56,7 +56,7 @@ function Get-RegistryInfo {
         $winRegisteredOwner = if ($winInfo.PSObject.Properties.Name -contains "RegisteredOwner") { $winInfo.RegisteredOwner } else { "Unknown" }
     }
     catch {
-        Write-Host "Error reading registry key: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Error "Error reading registry key: $($_.Exception.Message)" -ForegroundColor Red
         return [PSCustomObject]@{
             WindowsVersion = "Unknown"
             WindowsBuild = "Unknown"
@@ -86,7 +86,7 @@ function Get-RegistryInfo {
         }
     } 
     catch {
-        Write-Host "Error reading installed software: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Error "Error reading installed software: $($_.Exception.Message)" -ForegroundColor Red
     }
 
     return [PSCustomObject]@{
