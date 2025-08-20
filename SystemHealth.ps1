@@ -19,9 +19,47 @@ function Get-RegistryInfo {
         [string]$KeyPath = "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion"
     )
 
-    # Your code here
-    # Hint: Use Get-ItemProperty to read registry values
-    # While loop to iterate through multiple software entries
+    try{
+        $winInfo = Get-ItemProperty -Path $KeyPath
+        $winVersion = $winInfo.ProductName
+        $winBuild = $winInfo.CurrentBuild
+        $winRegisteredOwner = $winInfo.RegisteredOwner
+    }catch {
+        Write-Error "Failed to read registry key: $_"
+        return
+    }
+
+    $swKeyPath = "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall"
+    $softwareList = @()
+
+    try {
+        $softwareKeys = Get-ChildItem -Path $swKeyPath
+        $counter = 0
+        $found = 0
+
+        $counter = 0
+        $found = 0
+
+        while ($found -lt 5 -and $counter -lt $softwareKeys.Count) {
+            $keyPath = $softwareKeys[$counter].PSPath
+            $item = Get-ItemProperty -Path $keyPath -ErrorAction SilentlyContinue
+
+            if ($null -ne $item -and $item.PSObject.Properties.Name -contains "DisplayName") {
+                $softwareList += $item.DisplayName
+                $found++
+            }
+
+            $counter++
+        }
+    } catch {
+        Write-Error "Failed to read installed software: $_"
+    }
+    return [PSCustomObject]@{
+        WindowsVersion = $winVersion
+        WindowsBuild = $winBuild
+        RegisteredOwner = $winRegisteredOwner
+        InstalledSoftware = $softwareList
+    }
 }
 
 # Function 3: Gather system information
@@ -40,6 +78,3 @@ function Start-SystemHealthCheck {
 
     Write-Host "=== System Health Check Complete ===" -ForegroundColor Green
 }
-
-# Export functions for use by megascript
-Export-ModuleMember -Function Check-DiskSpace, Get-RegistryInfo, Get-SystemInfo, Start-SystemHealthCheck
